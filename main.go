@@ -147,6 +147,8 @@ func putFile(file, key, prefix string, bucket *oos.Object) {
 	err = bucket.PutObjectFromFile(prefix+key, file)
 	if err != nil {
 		fmt.Println(err)
+	} else if verbose {
+		fmt.Println(key)
 	}
 }
 
@@ -167,7 +169,7 @@ func walkDir(dir string, bucket *oos.Object) {
 		}
 		objectKey := fpath
 		if strings.HasPrefix(fpath, dir) {
-			objectKey = strings.Replace(fpath, dir, "", -1)[1:]
+			objectKey = fpath[len(dir)+1:]
 		}
 		if len(skip) > 0 {
 			for _, v := range skip {
