@@ -14,6 +14,7 @@ import (
 
 	"oos-go-sdk/oos"
 
+	"github.com/gosuri/uilive"
 	"github.com/pelletier/go-toml"
 )
 
@@ -37,6 +38,7 @@ var (
 	upload     bool
 	concurrent int
 	verbose    bool
+	multipart  bool
 	skip       arrayFlags
 )
 
@@ -49,6 +51,7 @@ func main() {
 	flag.BoolVar(&upload, "u", false, "是否上传")
 	flag.BoolVar(&verbose, "v", false, "打印文件名")
 	flag.IntVar(&concurrent, "c", 10, "并发上传数")
+	flag.BoolVar(&multipart, "m", false, "分片上传")
 	flag.Var(&skip, "skip", "忽略文件的前缀")
 	flag.Parse()
 
@@ -71,7 +74,11 @@ func main() {
 	if dir != "" {
 		walkDir(dir, bucket)
 	} else if file != "" {
-		putFile(file, key, prefix, bucket)
+		if multipart {
+			uploadMultipart(file, key, prefix, bucket)
+		} else {
+			putFile(file, key, prefix, bucket)
+		}
 	}
 
 	// /*************** bucket test *******************/
@@ -130,6 +137,48 @@ func NewClient() *oos.Client {
 		os.Exit(1)
 	}
 	return client
+}
+
+func uploadMultipart(file, key, prefix string, bucket *oos.Object) {
+	fi, err := os.Stat(file)
+	if os.IsNotExist(err) {
+		fmt.Println(dir, "文件不存在")
+		os.Exit(1)
+	}
+	if key == "" {
+		key = fi.Name()
+	}
+	if prefix != "" {
+		key = prefix + key
+	}
+	var listener = &UplaodListener{
+		w: uilive.New(),
+	}
+
+	err = bucket.UploadFile(prefix+key, file, 5*1024*1024, oos.Routines(3), oos.Progress(listener))
+	if err != nil {
+		fmt.Println(err)
+	} else if verbose {
+		fmt.Println(key)
+	}
+}
+
+type UplaodListener struct {
+	w *uilive.Writer
+}
+
+func (l *UplaodListener) ProgressChanged(event *oos.ProgressEvent) {
+	switch event.EventType {
+	case oos.TransferStartedEvent:
+		l.w.Start()
+	case oos.TransferDataEvent:
+		fmt.Fprintf(l.w, "Upload.. %.2f%%/%s\n", float64(event.ConsumedBytes*100)/float64(event.TotalBytes), humanFileSize(float64(event.TotalBytes)))
+	case oos.TransferCompletedEvent:
+		fmt.Fprintln(l.w, "上传完成")
+		l.w.Stop()
+	case oos.TransferFailedEvent:
+		fmt.Println("上传失败")
+	}
 }
 
 func putFile(file, key, prefix string, bucket *oos.Object) {
@@ -205,4 +254,14 @@ func walkDir(dir string, bucket *oos.Object) {
 	if upload {
 		fmt.Printf("上传完成, 共 %d 个", c)
 	}
+}
+
+func humanFileSize(bytes float64) string {
+	var thresh float64 = 1024
+	var size = []string{"B", "KB", "MB", "GB", "TB"}
+	var order int
+	for ; bytes >= thresh && order < len(size)-1; order++ {
+		bytes = bytes / thresh
+	}
+	return fmt.Sprintf("%.2f%s", bytes, size[order])
 }
