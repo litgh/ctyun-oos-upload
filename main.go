@@ -178,6 +178,7 @@ func (l *UplaodListener) ProgressChanged(event *oos.ProgressEvent) {
 		l.w.Stop()
 	case oos.TransferFailedEvent:
 		fmt.Println("上传失败")
+		l.w.Stop()
 	}
 }
 
