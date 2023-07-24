@@ -27,8 +27,6 @@ jobs:
 
       - name: Set up Go
         uses: actions/setup-go@v4
-        env:
-          https_proxy: http://192.168.20.135:7890
         with:
           go-version: "1.19.1"
       - name: Install dependencies
