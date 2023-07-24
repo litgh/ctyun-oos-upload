@@ -1,8 +1,8 @@
 package sample
 
 import (
+	"ctyun-oos-upload/oos"
 	"fmt"
-	"oos-go-sdk/oos"
 )
 
 // BucketWebSiteSample shows how to get and set the bucket WebSite

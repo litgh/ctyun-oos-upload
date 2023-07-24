@@ -40,6 +40,26 @@ func (bucket Object) UploadFile(objectKey, filePath string, partSize int64, opti
 	return bucket.uploadFile(objectKey, filePath, partSize, options, routines)
 }
 
+func (bucket Object) UploadFileWithCp(objectKey, filePath string, partSize int64, options ...Option) error {
+	if objectKey == "" {
+		return errors.New("the parameter is invalid: ObjectKey is empty")
+	}
+
+	if filePath == "" {
+		return errors.New("the parameter is invalid: filePath is empty")
+	}
+
+	if partSize < MinPartSize || partSize > MaxPartSize {
+		return errors.New("oos: part size invalid range (1024KB, 5GB]")
+	}
+
+	routines := getRoutines(options)
+
+	checkpoint := getCpConfig(options)
+
+	return bucket.uploadFileWithCp(objectKey, filePath, partSize, options, getUploadCpFilePath(checkpoint, "", "", ""), routines)
+}
+
 func getUploadCpFilePath(cpConf *cpConfig, srcFile, destBucket, destObject string) string {
 	if cpConf.FilePath == "" && cpConf.DirPath != "" {
 		dest := fmt.Sprintf("oos://%v/%v", destBucket, destObject)

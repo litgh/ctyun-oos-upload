@@ -1,6 +1,6 @@
 package sample
 
-import "oos-go-sdk/oos"
+import "ctyun-oos-upload/oos"
 
 func PutObjectMultipartSample() {
 

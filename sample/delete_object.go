@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 // DeleteObjectSample shows how to delete single file or multiple files

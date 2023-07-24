@@ -46,6 +46,32 @@ func (bucket Object) DownloadFile(objectKey, filePath string, partSize int64, op
 	return bucket.downloadFile(objectKey, filePath, partSize, options, routines, uRange)
 }
 
+func (bucket Object) DownloadFileWithCp(objectKey, filePath string, partSize int64, options ...Option) error {
+
+	if objectKey == "" {
+		return errors.New("the parameter is invalid: ObjectKey is empty")
+	}
+
+	if filePath == "" {
+		return errors.New("the parameter is invalid: filePath is empty")
+	}
+
+	if partSize < 1 {
+		return errors.New("oos: part size smaller than 1")
+	}
+
+	uRange, err := getRangeConfig(options)
+	if err != nil {
+		return err
+	}
+
+	routines := getRoutines(options)
+
+	checkpoint := getCpConfig(options)
+
+	return bucket.downloadFileWithCp(objectKey, filePath, partSize, options, getDownloadCpFilePath(checkpoint, "", "", ""), routines, uRange)
+}
+
 /* unused */
 func getDownloadCpFilePath(cpConf *cpConfig, srcBucket, srcObject, destFile string) string {
 	if cpConf.FilePath == "" && cpConf.DirPath != "" {

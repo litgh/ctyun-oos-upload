@@ -3,7 +3,7 @@ package sample
 import (
 	"fmt"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 // ListObjectsSample shows the file list, including default and specified parameters.

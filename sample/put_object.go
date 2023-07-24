@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 // PutObjectSample illustrates two methods for uploading a file: simple upload and multipart upload.

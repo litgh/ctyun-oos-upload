@@ -3,7 +3,7 @@ package sample
 import (
 	"fmt"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 // CopyObjectSample shows the copy files usage

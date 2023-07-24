@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 var (

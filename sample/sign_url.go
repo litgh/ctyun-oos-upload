@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 // SignURLSample signs URL sample

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 // BucketACLSample shows how to get and set the bucket ACL

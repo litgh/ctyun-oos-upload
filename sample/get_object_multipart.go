@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"oos-go-sdk/oos"
+	"ctyun-oos-upload/oos"
 )
 
 func GetObjectMultipartSample() {
