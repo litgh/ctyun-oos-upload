@@ -132,11 +132,10 @@ func NewClient() *oos.Client {
 	home, _ := os.UserHomeDir()
 	config, err := toml.LoadFile(home + "/.oos")
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		HandleError(err)
 	}
 	endpoint, accessKey, secretKey := config.Get("endpoint").(string), config.Get("accessKey").(string), config.Get("secretKey").(string)
-	if !strings.HasPrefix(endpoint, "http://") {
+	if !strings.HasPrefix(endpoint, "http") {
 		endpoint = "http://" + endpoint
 	}
 	timeOut := oos.Timeout(30, 90)
@@ -144,8 +143,7 @@ func NewClient() *oos.Client {
 	isEnableSha256 := oos.EnableSha256ForPayload(false)
 	client, err := oos.New(endpoint, accessKey, secretKey, clientOptionV4, isEnableSha256, timeOut)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		HandleError(err)
 	}
 	return client
 }
@@ -196,9 +194,9 @@ func uploadMultipart(file, key, prefix string, bucket *oos.Object) {
 		w: uilive.New(),
 	}
 
-	err = bucket.UploadFile(prefix+key, file, 5*1024*1024, oos.Routines(concurrent), oos.Progress(listener), oos.Checkpoint(true, "checkpointFile.ucp"))
+	err = bucket.UploadFile(prefix+key, file, buf, oos.Routines(concurrent), oos.Progress(listener), oos.Checkpoint(true, "checkpointFile.ucp"))
 	if err != nil {
-		fmt.Println(err)
+		HandleError(err)
 	} else if verbose {
 		fmt.Println(key)
 	}
@@ -237,7 +235,7 @@ func putFile(file, key, prefix string, bucket *oos.Object) {
 	}
 	err = bucket.PutObjectFromFile(key, file)
 	if err != nil {
-		fmt.Println(err)
+		HandleError(err)
 	} else if verbose {
 		fmt.Println(key)
 	}
