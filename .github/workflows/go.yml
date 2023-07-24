@@ -34,12 +34,12 @@ jobs:
       - name: Install dependencies
         run: go get .
       - name: Making ctyun-oos-upload
-        run: go build -v ./... && ls
+        run: go build -v ./...
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
       - name: Packaging...
-        run: tar czf ctyun-oos-upload-${{ matrix.goos }}-${{ matrix.goarch }}.tgz ctyun-oos-upload
+        run: ls && tar czf ctyun-oos-upload-${{ matrix.goos }}-${{ matrix.goarch }}.tgz ctyun-oos-upload
       - name: Uploading assets...
         if: ${{ !env.ACT }}
         id: upload-release-asset
