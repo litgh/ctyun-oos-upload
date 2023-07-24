@@ -40,6 +40,8 @@ var (
 	verbose    bool
 	multipart  bool
 	skip       arrayFlags
+	del        bool
+	buf        int64
 )
 
 func main() {
@@ -52,6 +54,8 @@ func main() {
 	flag.BoolVar(&verbose, "v", false, "打印文件名")
 	flag.IntVar(&concurrent, "c", 10, "并发上传数")
 	flag.BoolVar(&multipart, "m", false, "分片上传")
+	flag.BoolVar(&del, "delete", false, "删除文件")
+	flag.Int64Var(&buf, "buf", 5*1024*1024, "分片大小, 默认5*1024*1024")
 	flag.Var(&skip, "skip", "忽略文件的前缀")
 	flag.Parse()
 
@@ -59,16 +63,23 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-
-	if dir == "" && file == "" {
+	if del {
+		if prefix == "" {
+			flag.Usage()
+			os.Exit(1)
+		}
+	} else if dir == "" && file == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
 	client := NewClient()
 	bucket, err := client.Bucket(bucket)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		HandleError(err)
+	}
+	if del {
+		delObjects(prefix, bucket)
+		return
 	}
 
 	if dir != "" {
@@ -139,6 +150,36 @@ func NewClient() *oos.Client {
 	return client
 }
 
+func delObjects(prefix string, bucket *oos.Object) {
+	pre := oos.Prefix(prefix)
+	marker := oos.Marker("")
+	var c int
+	w := uilive.New()
+	w.Start()
+	defer w.Stop()
+	for {
+		lor, err := bucket.ListObjects(oos.MaxKeys(100), marker, pre)
+		if err != nil {
+			HandleError(err)
+		}
+		pre = oos.Prefix(lor.Prefix)
+		marker = oos.Marker(lor.NextMarker)
+		var objects []string
+		for _, object := range lor.Objects {
+			objects = append(objects, object.Key)
+		}
+		c += len(objects)
+		_, err = bucket.DeleteObjects(objects)
+		if err != nil {
+			HandleError(err)
+		}
+		fmt.Fprintf(w, "删除%d个文件\n", c)
+		if !lor.IsTruncated {
+			break
+		}
+	}
+}
+
 func uploadMultipart(file, key, prefix string, bucket *oos.Object) {
 	fi, err := os.Stat(file)
 	if os.IsNotExist(err) {
@@ -155,7 +196,7 @@ func uploadMultipart(file, key, prefix string, bucket *oos.Object) {
 		w: uilive.New(),
 	}
 
-	err = bucket.UploadFile(prefix+key, file, 5*1024*1024, oos.Routines(3), oos.Progress(listener))
+	err = bucket.UploadFile(prefix+key, file, 5*1024*1024, oos.Routines(concurrent), oos.Progress(listener), oos.Checkpoint(true, "checkpointFile.ucp"))
 	if err != nil {
 		fmt.Println(err)
 	} else if verbose {
@@ -194,7 +235,7 @@ func putFile(file, key, prefix string, bucket *oos.Object) {
 	if prefix != "" {
 		key = prefix + key
 	}
-	err = bucket.PutObjectFromFile(prefix+key, file)
+	err = bucket.PutObjectFromFile(key, file)
 	if err != nil {
 		fmt.Println(err)
 	} else if verbose {
@@ -213,6 +254,11 @@ func walkDir(dir string, bucket *oos.Object) {
 	var c int32 = 0
 	ch := make(chan struct{}, concurrent)
 	defer close(ch)
+	w := uilive.New()
+	w.Start()
+	defer w.Stop()
+	var uploadFailed []string
+
 	err = filepath.WalkDir(dir, func(fpath string, d fs.DirEntry, err error) error {
 		if d.IsDir() || err != nil {
 			return nil
@@ -234,14 +280,26 @@ func walkDir(dir string, bucket *oos.Object) {
 			wg.Add(1)
 			go func(objKey, p string) {
 				e := bucket.PutObjectFromFile(objKey, p)
-				<-ch
-				wg.Done()
 				if e == nil {
 					atomic.AddInt32(&c, 1)
 					if verbose {
 						fmt.Println("上传文件", objectKey)
+					} else {
+						fmt.Fprintf(w, "已上传%d个文件\n", c)
+					}
+				} else {
+					for i := 0; i < 5; i++ {
+						e = bucket.PutObjectFromFile(objKey, p)
+						if e == nil {
+							break
+						}
+					}
+					if e != nil {
+						uploadFailed = append(uploadFailed, p)
 					}
 				}
+				<-ch
+				wg.Done()
 			}(objectKey, fpath)
 		} else {
 			fmt.Println(fpath)
@@ -254,6 +312,12 @@ func walkDir(dir string, bucket *oos.Object) {
 	wg.Wait()
 	if upload {
 		fmt.Printf("上传完成, 共 %d 个", c)
+		if len(uploadFailed) > 0 {
+			fmt.Printf(", 失败%d \n", len(uploadFailed))
+			for _, v := range uploadFailed {
+				fmt.Println(v)
+			}
+		}
 	}
 }
 
@@ -265,4 +329,9 @@ func humanFileSize(bytes float64) string {
 		bytes = bytes / thresh
 	}
 	return fmt.Sprintf("%.2f%s", bytes, size[order])
+}
+
+func HandleError(err error) {
+	fmt.Println("occurred error:", err)
+	os.Exit(1)
 }
