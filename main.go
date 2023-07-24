@@ -147,6 +147,8 @@ func deleteCmd() *cli.Command {
 				oos.deleteFile(ctx.String("file"))
 			} else if ctx.String("dir") != "" {
 				oos.deleteDir(ctx.String("dir"))
+			} else if ctx.String("prefix") != "" {
+				oos.deleteDir(ctx.String("prefix"))
 			}
 			return nil
 		},
