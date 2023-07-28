@@ -260,7 +260,7 @@ func (oos *Oos) uploadDir(dir string, skip []string, concurrent int, upload bool
 		os.Exit(1)
 	}
 	wg := sync.WaitGroup{}
-	var c int32 = 0
+	var c, total int32 = 0, 0
 	ch := make(chan struct{}, concurrent)
 	defer close(ch)
 	w := uilive.New()
@@ -272,6 +272,7 @@ func (oos *Oos) uploadDir(dir string, skip []string, concurrent int, upload bool
 		if d.IsDir() || err != nil {
 			return nil
 		}
+		total++
 		objectKey := fpath
 		if strings.HasPrefix(fpath, dir) {
 			objectKey = fpath[len(dir)+1:]
@@ -297,9 +298,17 @@ func (oos *Oos) uploadDir(dir string, skip []string, concurrent int, upload bool
 						fmt.Fprintf(w, "已上传%d个文件\n", c)
 					}
 				} else {
-					for i := 0; i < 5; i++ {
+					for i := 0; i < 10; i++ {
+						if oos.verbose {
+							fmt.Printf("%s上传失败, 重试%d..\n", p, i+1)
+						} else {
+							fmt.Fprintf(w, "%s上传失败, 重试%d..\n", p, i+1)
+						}
 						e = oos.bucket.PutObjectFromFile(objKey, p)
 						if e == nil {
+							if !oos.verbose {
+								fmt.Fprintf(w, "已上传%d个文件\n", c)
+							}
 							break
 						}
 					}
@@ -320,7 +329,7 @@ func (oos *Oos) uploadDir(dir string, skip []string, concurrent int, upload bool
 	}
 	wg.Wait()
 	if upload {
-		fmt.Printf("上传完成, 共 %d 个", c)
+		fmt.Printf("上传完成, 共 %d 个, 成功上传 %d 个", total, c)
 		if len(uploadFailed) > 0 {
 			fmt.Printf(", 失败%d \n", len(uploadFailed))
 			for _, v := range uploadFailed {
