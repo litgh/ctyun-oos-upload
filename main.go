@@ -193,7 +193,8 @@ func downloadCmd() *cli.Command {
 			&cli.StringFlag{
 				Name:    "block",
 				Aliases: []string{"b"},
-				Usage:   "分片大小",
+				Value:   "5m",
+				Usage:   "分片大小(默认5m), 例: 1k 1m 100M 1g 1G",
 			},
 			&cli.BoolFlag{
 				Name:    "multipart",
@@ -350,12 +351,12 @@ func (oos *Oos) uploadMultipart(file, key, prefix string, block int64, concurren
 	if prefix != "" {
 		key = prefix + key
 	}
-	var listener = &ProgressListener{
-		name: "上传",
-		w:    uilive.New(),
-	}
 	for i := 1; ; i++ {
 		fmt.Println("准备上传", file)
+		var listener = &ProgressListener{
+			name: "上传",
+			w:    uilive.New(),
+		}
 		err = oos.bucket.UploadFileWithCp(prefix+key, file, block, oossdk.Routines(concurrent), oossdk.Progress(listener), oossdk.Checkpoint(true, ".ucp"))
 		if err != nil {
 			if listener.Start {
@@ -473,12 +474,12 @@ func (oos *Oos) downloadMultipart(file, output string, block int64, concurrent i
 	if output == "" {
 		_, output = filepath.Split(file)
 	}
-	var listener = &ProgressListener{
-		name: "下载",
-		w:    uilive.New(),
-	}
 
 	for i := 0; ; i++ {
+		var listener = &ProgressListener{
+			name: "下载",
+			w:    uilive.New(),
+		}
 		fmt.Println("准备下载", file)
 		err = oos.bucket.DownloadFileWithCp(file, output, block, oossdk.Routines(concurrent), oossdk.Progress(listener), oossdk.Checkpoint(true, ".dcp"))
 		if err != nil {
